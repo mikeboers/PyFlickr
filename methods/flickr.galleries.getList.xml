@@ -11,7 +11,7 @@
              count_photos=&quot;16&quot; count_videos=&quot;2&quot; &gt;
        &lt;title&gt;I like me some black &amp;amp; white&lt;/title&gt;
        &lt;description&gt;black and whites&lt;/description&gt;
-   &lt;gallery&gt;
+   &lt;/gallery&gt;
    &lt;gallery id=&quot;5704-72157622566655097&quot; 
             url=&quot;http://www.flickr.com/photos/george/galleries/72157622566655097&quot; 
             owner=&quot;34427469121@N01&quot; date_create=&quot;1256852229&quot; date_update=&quot;1260462343&quot; 
@@ -20,7 +20,7 @@
             count_photos=&quot;18&quot; count_videos=&quot;0&quot; &gt;
        &lt;title&gt;People Sleeping in Libraries&lt;/title&gt;
        &lt;description /&gt;
-   &lt;gallery&gt;
+   &lt;/gallery&gt;
 &lt;/galleries&gt;</response>
 </method>
 <arguments>

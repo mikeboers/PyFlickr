@@ -20,7 +20,7 @@
              count_photos=&quot;13&quot; count_videos=&quot;0&quot;&gt;
         &lt;title&gt;Awesome Pics&lt;/title&gt;
         &lt;description /&gt;
-    &lt;gallery&gt;
+    &lt;/gallery&gt;
 &lt;/galleries&gt;</response>
 </method>
 <arguments>

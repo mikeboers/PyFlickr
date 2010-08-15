@@ -2,8 +2,7 @@
 <rsp stat="ok">
 <method name="flickr.photos.upload.checkTickets" needslogin="0" needssigning="0" requiredperms="0">
 	<description>Checks the status of one or more asynchronous photo upload tickets.</description>
-	<response>&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot; ?&gt;
-&lt;uploader&gt;
+	<response>&lt;uploader&gt;
 	&lt;ticket id=&quot;128&quot; complete=&quot;1&quot; photoid=&quot;2995&quot; /&gt;
 	&lt;ticket id=&quot;129&quot; complete=&quot;0&quot; /&gt;
 	&lt;ticket id=&quot;130&quot; complete=&quot;2&quot; /&gt;

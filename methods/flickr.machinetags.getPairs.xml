@@ -3,7 +3,7 @@
 <method name="flickr.machinetags.getPairs" needslogin="0" needssigning="0" requiredperms="0">
 	<description>Return a list of unique namespace and predicate pairs, optionally limited by predicate or namespace, in alphabetical order.</description>
 	<response>&lt;pairs page=&quot;1&quot; total=&quot;1228&quot; perpage=&quot;500&quot; pages=&quot;3&quot;&gt;
-   &lt;pair namespace=&quot;aero&quot; predicate=&quot;airline&quot; usage=&quot;1093&quot;&gt;aero:airline&lt;/pairs&gt;
+   &lt;pair namespace=&quot;aero&quot; predicate=&quot;airline&quot; usage=&quot;1093&quot;&gt;aero:airline&lt;/pair&gt;
    &lt;pair namespace=&quot;aero&quot; predicate=&quot;icao&quot; usage=&quot;4&quot;&gt;aero:icao&lt;/pair&gt;
    &lt;pair namespace=&quot;aero&quot; predicate=&quot;model&quot; usage=&quot;1026&quot;&gt;aero:model&lt;/pair&gt;
    &lt;pair namespace=&quot;aero&quot; predicate=&quot;tail&quot; usage=&quot;1048&quot;&gt;aero:tail&lt;/pair&gt;

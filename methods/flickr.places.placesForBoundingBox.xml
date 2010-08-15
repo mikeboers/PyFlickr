@@ -34,7 +34,6 @@ The maximum allowable size of a bounding box (the distance between the SW and NE
       place_type=&quot;neighbourhood&quot;&gt;
       Chinatown, San Francisco, CA, US, United States
    &lt;/place&gt;
-   &lt;!-- and so on ---&gt;
 &lt;/places&gt;</response>
 </method>
 <arguments>

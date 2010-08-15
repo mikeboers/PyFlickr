@@ -5,7 +5,7 @@
 	<response>&lt;photos&gt;
 	&lt;photo id=&quot;2801&quot; owner=&quot;12037949629@N01&quot;
 		secret=&quot;123456&quot; server=&quot;1&quot;
-		username=&quot;Eric is &quot;the best&quot;&quot; title=&quot;grease&quot; /&gt; 
+		username=&quot;Eric is &amp;quot;the best&amp;quot;&quot; title=&quot;grease&quot; /&gt; 
 	&lt;photo id=&quot;2499&quot; owner=&quot;33853651809@N01&quot;
 		secret=&quot;123456&quot; server=&quot;1&quot;
 		username=&quot;cal18&quot; title=&quot;36679_o&quot; /&gt; 

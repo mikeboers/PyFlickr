@@ -8,7 +8,7 @@
                place_url=&quot;/United+States/California/San+Francisco&quot;
                place_type=&quot;locality&quot;
                photo_count=&quot;156&quot;&gt;San Francisco, California&lt;/place&gt;
-&lt;/place&gt;</response>
+&lt;/places&gt;</response>
 </method>
 <arguments>
 	<argument name="api_key" optional="0">Your API application key. &lt;a href=&quot;/services/api/misc.api_keys.html&quot;&gt;See here&lt;/a&gt; for more details.</argument>

@@ -8,7 +8,7 @@
   &lt;namespace usage=&quot;670270&quot; predicates=&quot;35&quot;&gt;geo&lt;/namespace&gt;
   &lt;namespace usage=&quot;23903&quot; predicates=&quot;36&quot;&gt;taxonomy&lt;/namespace&gt;
   &lt;namespace usage=&quot;50449&quot; predicates=&quot;4&quot;&gt;upcoming&lt;/namespace&gt;
-&lt;/namespace&gt;
+&lt;/namespaces&gt;
 </response>
 	<explanation>&quot;Usage&quot; gives you roughly how popular a machine tags, while &quot;predicates&quot; is the count of distinct predicates a namespace has.</explanation>
 </method>
