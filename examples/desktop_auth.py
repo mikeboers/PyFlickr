@@ -15,4 +15,4 @@ raw_input()
 
 token = api.authorize()
 print 'token:', api.token
-print 'user:', api._user
+print 'user:', api.authed_user

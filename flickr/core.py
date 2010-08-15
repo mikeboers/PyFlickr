@@ -85,8 +85,10 @@ class Flickr(object):
         self.token = token
         
         self.frob = None
+        
         self._last_checked_token = None
-        self._user = None
+        self._perms = None
+        self._authed_user = None
     
     def __getattr__(self, name):
         if name in self._namespaces:
@@ -173,32 +175,20 @@ class Flickr(object):
         res = self('auth.getToken', frob=frob)
         self.token = res.token.text
         self._last_checked_token = self.token
-        self._user = res.user
+        self._authed_user = res.user
         
         return self.token
     
-    def _assert_user_properties(self):
+    @property
+    def authed_user(self):
         if not self.token:
             raise ValueError('no token')
         if self._last_checked_token != self.token:
             res = self.call('auth.checkToken', auth_token=self.token)
-            self._user = res.auth.user
+            self._authed_user = res.user
             self._last_checked_token = self.token
-    
-    @property
-    def username(self):
-        self._assert_user_properties()
-        return self._user.username
+        return self._authed_user
         
-    @property
-    def fullname(self):
-        self._assert_user_properties()
-        return self._user.fullname
-                    
-    @property
-    def nsid(self):
-        self._assert_user_properties()
-        return self._user.nsid
     
     def _method_photos_getInfo(self, photo_id):
         return self.call('photos.getInfo', photo_id=photo_id)
