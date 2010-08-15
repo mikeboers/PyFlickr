@@ -31,6 +31,7 @@ REPLACE_URL  = 'http://api.flickr.com/services/replace/';
 
 DEFAULT_KEY = os.environ.get('PYFLICKR_DEFAULT_KEY')
 DEFAULT_SECRET = os.environ.get('PYFLICKR_DEFAULT_SECRET')
+DEFAULT_TOKEN = os.environ.get('PYFLICKR_DEFAULT_TOKEN')
 
 if DEFAULT_KEY:
     logging.info('Default key: %s' % DEFAULT_KEY)
@@ -74,7 +75,7 @@ class FlickrNamespace(object):
 class Flickr(object):
     __metaclass__ = FlickrMeta
     
-    def __init__(self, key=DEFAULT_KEY, secret=DEFAULT_SECRET, token=None):
+    def __init__(self, key=DEFAULT_KEY, secret=DEFAULT_SECRET, token=DEFAULT_TOKEN):
         
         if not key:
             raise ValueError('missing api key')
@@ -137,7 +138,6 @@ class Flickr(object):
         self._sign_request(data)
         return AUTH_URL + '?' + urllib.urlencode(data)
     
-    
     def get_frob(self):
         """Retrieve a one-time use frob from Flickr server.
         
@@ -147,8 +147,8 @@ class Flickr(object):
         See: http://www.flickr.com/services/api/auth.howto.desktop.html
         """
         
-        res = self.call('auth.getFrob')
-        self.frob = res['frob']['_content']
+        res = self('auth.getFrob')
+        self.frob = res.text
         return self.frob
             
     def build_desktop_auth_link(self, perms=PERMS_READ, frob=None):
@@ -160,7 +160,11 @@ class Flickr(object):
         See: http://www.flickr.com/services/api/auth.howto.desktop.html
         """
         
-        data = {'perms': perms, 'frob': frob or self.get_frob()}
+        frob = frob or self.frob or self.get_frob()
+        data = dict(
+            perms=perms, 
+            frob=frob
+        )
         self._sign_request(data)
         return AUTH_URL + '?' + urllib.urlencode(data)
     
@@ -171,10 +175,7 @@ class Flickr(object):
         
         This method only returns the token. The API call does return a lot
         more data, however. If you want the username, fullname, nsid, etc, you
-        should make the API call yourself by:
-            
-            res = flickr.call('auth.getToken', frob=frob)
-            token = res['token']['_content']
+        should make the API call yourself.
         
         Or use the flickr.authorize() method.
         
@@ -183,10 +184,12 @@ class Flickr(object):
         See: http://www.flickr.com/services/api/flickr.auth.getToken.html
         """
         
-        if not frob or self.frob:
-            raise ValueError('No frob availible.')
-        res = self.call('auth.getToken', frob=frob or self.frob)
-        return res['auth']['token']['_content']
+        frob = frob or self.frob
+        if not frob:
+            raise ValueError('no frob')
+        res = self('auth.getToken', frob=frob)
+        self.token = res.token.text
+        return self.token
     
     def authorize(self, frob=None):
         """Authorize the instance after the user has shaken hands with Flickr.
@@ -200,7 +203,7 @@ class Flickr(object):
         """
         
         if not frob or self.frob:
-            raise ValueError('No frob availible.')
+            raise ValueError('no frob')
         
         res = self.call('auth.getToken', frob=frob or self.frob)
         self.token = res['auth']['token']['_content']
@@ -211,7 +214,7 @@ class Flickr(object):
     
     def _assert_user_properties(self):
         if self.token is None:
-            raise ValueError('Token is not set.')
+            raise ValueError('no token')
         if self._last_checked_token != self.token:
             res = self.call('auth.checkToken', auth_token=self.token)
             self._user = res.auth.user
@@ -238,19 +241,6 @@ class Flickr(object):
 
 if __name__ == '__main__':
     
-    flickr = Flickr()
-    
-    methods = flickr('reflection.getMethods')
-    for method in methods:
-        name = method.text
-        print name
-        filename = 'methods/%s.xml' % name
-        if not os.path.exists(filename) or not open(filename).read(1):
-            info = flickr.raw_call('reflection.getMethodInfo', method_name=name)
-            print info
-            print '=' * 80
-            print
-            open(filename, 'w').write(info)
     
     
     
