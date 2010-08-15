@@ -32,8 +32,6 @@ PERMS_DELETE = 'delete';
 UPLOAD_URL   = 'http://api.flickr.com/services/upload/';
 REPLACE_URL  = 'http://api.flickr.com/services/replace/';
 
-class Error(ValueError):
-    pass
 DEFAULT_KEY = os.environ.get('PYFLICKR_DEFAULT_KEY')
 DEFAULT_SECRET = os.environ.get('PYFLICKR_DEFAULT_SECRET')
 
@@ -69,6 +67,12 @@ if DEFAULT_KEY:
 
 class JSONResult(JSONResultPart):
     pass
+
+class APIError(ValueError):
+    
+    def __init__(self, code, message):
+        super(APIError, self).__init__('(%d) %s' % (code, message))
+        self.code = code
 
 
 class FlickrMeta(type):
@@ -134,6 +138,7 @@ class Flickr(object):
         # Do auth if we have a user auth token.
         if self.token is not None:
             data['auth_token'] = self.token
+            raise APIError(int(res.err['code']), res.err['msg'])
     
         # Sign everything!
         self._sign_data(data)
@@ -160,7 +165,6 @@ class Flickr(object):
             res = treesoup.parse(raw_res)
 
         if res and res['stat'] == 'fail':
-            raise Error(res.message, res.code)
 
         return res or raw_res
     
