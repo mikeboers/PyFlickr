@@ -7,19 +7,19 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
-def local_setup():
+def local_key():
     default_key = os.environ.get('PYFLICKR_DEFAULT_KEY', '')
     key = raw_input('Default key [%s]: ' % default_key).strip() or default_key
     default_secret = os.environ.get('PYFLICKR_DEFAULT_SECRET', '')
     secret = raw_input('Default secret [%s]: ' % default_secret).strip() or default_secret
     default_token = os.environ.get('PYFLICKR_DEFAULT_TOKEN', '')
     token = raw_input('Default token [%s]: ' % default_token).strip() or default_token
-    open('local_setup', 'w').write((
+    open('local_key', 'w').write((
         'export PYFLICKR_DEFAULT_KEY=%s\n'
         'export PYFLICKR_DEFAULT_SECRET=%s\n'
         'export PYFLICKR_DEFAULT_TOKEN=%s\n'
         ) % (key, secret, token))
-    print 'Make sure to `. local_setup`.'
+    print 'Make sure to `. local_key`.'
 
 def reflect():
     from flickr import Flickr
