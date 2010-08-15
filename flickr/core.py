@@ -1,8 +1,5 @@
-"""Flickr API binding.
-
-This used to primarily use the json return type, but I have since switched to
-the rest type. The old behaviour should be availible by setting format="json"
-in the constructor.
+"""
+Flickr API binding.
 
 """
 
@@ -35,38 +32,9 @@ REPLACE_URL  = 'http://api.flickr.com/services/replace/';
 DEFAULT_KEY = os.environ.get('PYFLICKR_DEFAULT_KEY')
 DEFAULT_SECRET = os.environ.get('PYFLICKR_DEFAULT_SECRET')
 
-class JSONResultPart(collections.Mapping):
-    def __init__(self, raw):
-        self._keys = raw.keys()
-        for k, v in raw.items():
-            if isinstance(v, dict):
-                setattr(self, k, JSONResultPart(v))
-            elif isinstance(v, list):
-                setattr(self, k, [JSONResultPart(x) for x in v])
-            else:
-                setattr(self, k, v)
-    
-    def __repr__(self):
-        d = dict((k, getattr(self, k)) for k in self)
-        return repr(d)
-    
-    def __iter__(self):
-        return iter(self._keys)
-    
-    def __getitem__(self, key):
-        try:
-            return getattr(self, key)
-        except AttributeError:
-            raise KeyError(key)
-    
-    def __len__(self):
-        return len(self._keys)
-    
 if DEFAULT_KEY:
     logging.info('Default key: %s' % DEFAULT_KEY)
 
-class JSONResult(JSONResultPart):
-    pass
 
 class APIError(ValueError):
     
@@ -121,52 +89,37 @@ class Flickr(object):
     
     def __getattr__(self, name):
         if name in self._namespaces:
-            return FlickrNameSpace(self, name)
+            return FlickrNamespace(self, name)
         raise AttributeError(name)
     
-    def _sign_data(self, data):
-        if self.key:
-            data['api_key'] = self.key
+    def _sign_request(self, data):    
+        data['api_key'] = self.key
+        if self.secret:
             to_sign = self.secret + ''.join('%s%s' % i for i in sorted(data.items()))
             data['api_sig'] = hashlib.md5(to_sign).hexdigest()
     
-    def callraw(self, method, **data):
+    def raw_call(self, method, **data):
         if not method.startswith('flickr.'):
             method = 'flickr.' + method
         data['method'] = method
-        
         # Do auth if we have a user auth token.
         if self.token is not None:
             data['auth_token'] = self.token
-            raise APIError(int(res.err['code']), res.err['msg'])
-    
-        # Sign everything!
-        self._sign_data(data)
-    
+        self._sign_request(data)
         url = REST_URL + '?' + urllib.urlencode(data)
-        return urllib.urlopen(url).read().decode('utf8')
+        # Don't need to manually decode the UTF-8 here as the XML parser will.
+        return urllib.urlopen(url).read()
     
-    def call(self, method, class_=None, **data):
-
-        format = data.get('format') or self.format
-        if format not in self._formats:
-            raise ValueError('bad format: %r' % format)
-        if format == 'json':
-            data['nojsoncallback'] = '1'
-
-        raw_res = self.callraw(method, **data)
-
-        res = None
-        if class_:
-            res = class_(raw_res)
-        elif format == 'json':
-            res = JSONResult(json.loads(raw_res))
-        elif format == 'rest':
-            res = treesoup.parse(raw_res)
-
-        if res and res['stat'] == 'fail':
-
-        return res or raw_res
+    def __call__(self, method, **data):
+        if 'format' in data:
+            del data['format']
+        res = treesoup.parse(self.raw_call(method, **data))
+        if res['stat'] == 'fail':
+            raise APIError(int(res.err['code']), res.err['msg'])
+        return res[0]
+    
+    
+    
     
     def build_web_auth_link(self, perms=PERMS_READ):
         """Build a link to authorize a web user.
@@ -181,8 +134,9 @@ class Flickr(object):
         """
         
         data = {'perms': perms}
-        self._sign_data(data)
+        self._sign_request(data)
         return AUTH_URL + '?' + urllib.urlencode(data)
+    
     
     def get_frob(self):
         """Retrieve a one-time use frob from Flickr server.
@@ -207,7 +161,7 @@ class Flickr(object):
         """
         
         data = {'perms': perms, 'frob': frob or self.get_frob()}
-        self._sign_data(data)
+        self._sign_request(data)
         return AUTH_URL + '?' + urllib.urlencode(data)
     
     def get_token(self, frob=None):
@@ -284,8 +238,26 @@ class Flickr(object):
 
 if __name__ == '__main__':
     
+    flickr = Flickr()
+    
+    methods = flickr('reflection.getMethods')
+    for method in methods:
+        name = method.text
+        print name
+        filename = 'methods/%s.xml' % name
+        if not os.path.exists(filename) or not open(filename).read(1):
+            info = flickr.raw_call('reflection.getMethodInfo', method_name=name)
+            print info
+            print '=' * 80
+            print
+            open(filename, 'w').write(info)
+    
+    
+    
+    
+    exit()
     nsid = '24585471@N05'
-    flickr = Flickr('455486bdcbef56f033eb6b1fa9c06904', '0f5b3c7c71e21d5e')
+    flickr = Flickr()
     
     
     frob = '72157621859939455-094639bf91886163-235409' or flickr.get_frob()
