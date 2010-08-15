@@ -125,95 +125,60 @@ class Flickr(object):
     def build_web_auth_link(self, perms=PERMS_READ):
         """Build a link to authorize a web user.
         
-        Upon authorization, the user will be returned to the callback-URL as
-        define in the Flickr API setup at
-        http://www.flickr.com/services/api/keys/ along with a GET frob
-        parameter.
+        Upon authorization, the user will be returned to the callback URL set
+        for the current key along with a "frob" GET parameter to be passed to
+        Flickr.authorize()
         
-        Flickr docs are here:
-            http://www.flickr.com/services/api/auth.howto.web.html
+        See: http://www.flickr.com/services/api/auth.howto.web.html
+            
         """
         
-        data = {'perms': perms}
+        request = dict(perms=perms)
         self._sign_request(data)
-        return AUTH_URL + '?' + urllib.urlencode(data)
-    
-    def get_frob(self):
-        """Retrieve a one-time use frob from Flickr server.
-        
-        Remembers the last retrieved frob for use in authenticating.
-        
-        For use when authenticating using desktop-app method.
-        See: http://www.flickr.com/services/api/auth.howto.desktop.html
-        """
-        
-        res = self('auth.getFrob')
-        self.frob = res.text
-        return self.frob
+        return AUTH_URL + '?' + urllib.urlencode(request)
             
     def build_desktop_auth_link(self, perms=PERMS_READ, frob=None):
         """Build a link to authorize a desktop user.
         
-        Accepts a frob, or automatically generates one and stores it at
-        flickr.frob.
+        Accepts a pre-generated frob, or automatically gets one. The frob is
+        stored for easy use of Flickr.authorize.
         
         See: http://www.flickr.com/services/api/auth.howto.desktop.html
+        
         """
         
-        frob = frob or self.frob or self.get_frob()
-        data = dict(
+        self.frob = frob or self.frob or self('auth.getFrob').text
+        request = dict(
             perms=perms, 
-            frob=frob
+            frob=self.frob
         )
-        self._sign_request(data)
-        return AUTH_URL + '?' + urllib.urlencode(data)
-    
-    def get_token(self, frob=None):
-        """Convert a (supposedly) authenticated frob into a user auth token.
-        
-        Will use flickr.frob if one is not supplied.
-        
-        This method only returns the token. The API call does return a lot
-        more data, however. If you want the username, fullname, nsid, etc, you
-        should make the API call yourself.
-        
-        Or use the flickr.authorize() method.
-        
-        See: http://www.flickr.com/services/api/auth.howto.web.html
-        See: http://www.flickr.com/services/api/auth.howto.desktop.html
-        See: http://www.flickr.com/services/api/flickr.auth.getToken.html
-        """
-        
-        frob = frob or self.frob
-        if not frob:
-            raise ValueError('no frob')
-        res = self('auth.getToken', frob=frob)
-        self.token = res.token.text
-        return self.token
+        self._sign_request(request)
+        return AUTH_URL + '?' + urllib.urlencode(request)
     
     def authorize(self, frob=None):
-        """Authorize the instance after the user has shaken hands with Flickr.
-        Returns the token.
+        """Authorize the instance after handshake with Flickr; returns token.
         
         Uses the last retrieved frob if one is not supplied. Automatically
         remembers the token and user info.
         
         See: http://www.flickr.com/services/api/auth.howto.web.html
         See: http://www.flickr.com/services/api/auth.howto.desktop.html
+        
         """
         
-        if not frob or self.frob:
+        frob = frob or self.frob
+        if not frob:
             raise ValueError('no frob')
         
-        res = self.call('auth.getToken', frob=frob or self.frob)
-        self.token = res['auth']['token']['_content']
+        res = self('auth.getToken', frob=frob)
+        self.token = res.token.text
         self._last_checked_token = self.token
-        self._user = res['auth']['user']
+        self._user = res.user
         
         return self.token
     
     def _assert_user_properties(self):
-        if self.token is None:
+        if not self.token:
             raise ValueError('no token')
         if self._last_checked_token != self.token:
             res = self.call('auth.checkToken', auth_token=self.token)

@@ -5,10 +5,7 @@ import flickr
 
 api = flickr.Flickr()
 
-frob = api.get_frob()
-print 'frob:', frob
-
-link = api.build_desktop_auth_link('read', frob)
+link = api.build_desktop_auth_link('read')
 print 'link:', link
 
 call(['open', link])
@@ -16,5 +13,6 @@ call(['open', link])
 print 'When you have authorized the link, hit return.',
 raw_input()
 
-token = api.get_token()
-print 'token:', token
+token = api.authorize()
+print 'token:', api.token
+print 'user:', api._user
