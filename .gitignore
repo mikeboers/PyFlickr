@@ -12,3 +12,6 @@
 /MANIFEST
 /dist
 /README.html
+
+*.egg-info
+local_keys
