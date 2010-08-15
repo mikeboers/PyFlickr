@@ -6,14 +6,20 @@ in the constructor.
 
 """
 
-import urllib
-import json
-import hashlib
-import pprint
 import collections
+import hashlib
+import json
+import logging
+import os
+import pprint
 import re
+import urllib
 
 import treesoup
+
+
+log = logging.getLogger(__name__)
+
 
 REST_URL     = 'http://api.flickr.com/services/rest/';
 AUTH_URL     = 'http://flickr.com/services/auth/';
@@ -28,6 +34,8 @@ REPLACE_URL  = 'http://api.flickr.com/services/replace/';
 
 class Error(ValueError):
     pass
+DEFAULT_KEY = os.environ.get('PYFLICKR_DEFAULT_KEY')
+DEFAULT_SECRET = os.environ.get('PYFLICKR_DEFAULT_SECRET')
 
 class JSONResultPart(collections.Mapping):
     def __init__(self, raw):
@@ -56,6 +64,8 @@ class JSONResultPart(collections.Mapping):
     def __len__(self):
         return len(self._keys)
     
+if DEFAULT_KEY:
+    logging.info('Default key: %s' % DEFAULT_KEY)
 
 class JSONResult(JSONResultPart):
     pass
@@ -92,18 +102,14 @@ class FlickrNamespace(object):
 class Flickr(object):
     __metaclass__ = FlickrMeta
     
-    _formats = set(('rest', 'xml'))
-    
-    def __init__(self, key=None, secret=None, token=None, format='rest'):
-        if format not in self._formats:
-            raise ValueError('bad format: %r' % format)
-        if (key or secret) and not (key and secret):
-            raise ValueError('need both key and secret, or neither')
+    def __init__(self, key=DEFAULT_KEY, secret=DEFAULT_SECRET, token=None):
+        
+        if not key:
+            raise ValueError('missing api key')
         
         self.key = key
         self.secret = secret
         self.token = token
-        self.format = format
         
         self.frob = None
         self._last_checked_token = None
