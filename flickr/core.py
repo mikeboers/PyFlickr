@@ -48,7 +48,7 @@ class FlickrMeta(type):
     def __new__(mcls, name, bases, dict):
         dict['_namespaces'] = namespaces = {}
         for key in dict.keys():
-            m = re.match(r'^_call_([a-zA-Z]+)_([a-zA-Z]+)$', key)
+            m = re.match(r'^_method_([a-zA-Z]+)_([a-zA-Z]+)$', key)
             if not m:
                 continue
             namespace, method = m.groups()
@@ -232,7 +232,7 @@ class Flickr(object):
         self._assert_user_properties()
         return self._user.nsid
     
-    def _call_photos_getInfo(self, photo_id):
+    def _method_photos_getInfo(self, photo_id):
         return self.call('photos.getInfo', photo_id=photo_id)
         
 
