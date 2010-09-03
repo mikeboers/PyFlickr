@@ -1,0 +1,34 @@
+
+- tests
+- examples
+- documentation
+- more todo items =]
+
+AutoType
+========
+
+The wrapping/auto-loading types should not be extensions of the parsed xml;
+they should completely encase it.
+
+Would be nice if the base class had a way of wrapping a list of xml objects which
+it will then query in turn for the needed data. This only works if the xpath to
+the data is consistent (in meaning).
+
+What are the types I need to build:
+	- Blog
+	- Collection
+	- Comment
+	- Contact/User
+	- Exif
+	- Gallery
+	- Group
+	- MachineTag
+	- Note
+	- Panda?
+	- Photoset
+	- Place
+
+All changes to the objects should be recorded in a work_queue, that is flushed
+to the server whenever you call sync().
+
+We can get at existing photos with api.get_photo, or api.get_user(nsid).photosets[0][0] 
