@@ -13,6 +13,5 @@ setup(
     license='New BSD License',
     
     packages=['flickr'],
-    install_requires=['treesoup'],
     
 )
