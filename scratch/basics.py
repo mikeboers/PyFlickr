@@ -34,5 +34,6 @@ if False:
 if True:
     token = '72157627055715565-3ac7ea96a536528a'
     token_secret = '4770e80867f244c1'
-    flickr = Flickr((key, secret), (token, token_secret))
-    pprint(flickr.test.echo(format='json'))
+    flickr = Flickr((key, secret), (token, token_secret), format='json')
+    
+    pprint(flickr.not_a_method())
