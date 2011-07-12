@@ -36,5 +36,7 @@ if True:
     token_secret = '4770e80867f244c1'
     flickr = Flickr((key, secret), (token, token_secret), format='json')
     
-    for x in flickr.photosets.getPhotos.iter(photoset_id='72157626494298321', per_page=10):
-        print x.get('id'), repr(x.get('title'))
+    
+    for x in flickr.photosets.getPhotos.iter(photoset_id='72157626494298321', per_page=10, format='etree'):
+        print x
+        continue

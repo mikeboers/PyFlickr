@@ -45,7 +45,17 @@ class FormatterInterface(object):
     def get_status(self, response):
         # return stat, err_core, err_message
         pass
-
+    
+    @abc.abstractmethod
+    def get_page_count(self, response):
+        """Get the integer number of pages in a response, or None."""
+        pass
+    
+    @abc.abstractmethod
+    def get_page_contents(self, response):
+        """Get an iterator across the elements in this page."""
+        pass
+    
 class ETreeFormatter(object):
     def prepare_data(self, data):
         data['format'] = 'rest'
@@ -62,6 +72,10 @@ class ETreeFormatter(object):
             code = response.find('err').get('code')
             msg = response.find('err').get('msg')
         return stat, code, msg
+    def get_page_count(self, response):
+        return int(response[0].get('pages'))
+    def get_page_contents(self, response):
+        return response[0]
 
 class LXMLETreeFormatter(ETreeFormatter):
     def parse_response(self, meta, content):
@@ -81,6 +95,16 @@ class JSONFormatter(object):
         return json.loads(content)
     def get_status(self, response):
         return tuple(response.get(name) for name in ('stat', 'code', 'message'))
+    def get_page_count(self, response):
+        for k, v in response.iteritems():
+            if isinstance(v, dict):
+                return int(v['pages'])
+    def get_page_contents(self, response):
+        for k, v in response.iteritems():
+            if isinstance(v, dict):
+                for k, v2 in v.iteritems():
+                    if isinstance(v2, list):
+                        return v2
 
 formatters = {
     'etree': ETreeFormatter(),
@@ -130,10 +154,13 @@ class Flickr(object):
     def __getattr__(self, name):
         return _MethodPlaceholder(self, 'flickr.' + name)
     
+    def _get_formatter(self, **kwargs):
+        return formatters[kwargs.get('format', self.format)]
+        
     def __call__(self, method, **data):
         strict = data.pop('strict', self.strict)
         data['method'] = method
-        formatter = formatters[data.get('format', self.format)]
+        formatter = self._get_formatter(**data)
         formatter.prepare_data(data)
         url = REST_URL + '?' + urlencode(data)
         meta, content = self.client.request(url)
@@ -146,13 +173,13 @@ class Flickr(object):
     def iter(self, method, **data):
         page = int(data.pop('page', 1))
         pages = page
-        data['format'] = 'etree'
+        formatter = self._get_formatter(**data)
         while page <= pages:
             data['page'] = page
             res = self(method, **data.copy())
-            for child in res[0]:
+            for child in formatter.get_page_contents(res):
                 yield child
-            pages = int(res[0].get('pages'))
+            pages = formatter.get_page_count(res)
             page += 1
         
     def get_request_token(self, oauth_callback):
