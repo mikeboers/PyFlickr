@@ -6,17 +6,22 @@ import logging
 import os
 import pprint
 import re
-import urllib
+from urlparse import parse_qsl
+from urllib import urlencode
 
 import oauth2 as oauth
 
 log = logging.getLogger(__name__)
 
 
-REST_URL     = 'http://api.flickr.com/services/rest/'
-AUTH_URL     = 'http://flickr.com/services/auth/'
-UPLOAD_URL   = 'http://api.flickr.com/services/upload/'
-REPLACE_URL  = 'http://api.flickr.com/services/replace/'
+REST_URL = 'http://api.flickr.com/services/rest/'
+
+REQUEST_TOKEN_URL = 'http://www.flickr.com/services/oauth/request_token'
+USER_AUTH_URL = 'http://www.flickr.com/services/oauth/authorize'
+ACCESS_TOKEN_URL = 'http://www.flickr.com/services/oauth/access_token'
+
+UPLOAD_URL = 'http://api.flickr.com/services/upload/'
+REPLACE_URL = 'http://api.flickr.com/services/replace/'
 
 
 class FlickrError(ValueError):
@@ -112,62 +117,38 @@ class Flickr(object):
     def __getattr__(self, name):
         return _MethodPlaceholder(self, 'flickr.' + name)
     
+        
     def __call__(self, method, **data):
         if not method.startswith('flickr.'):
             method = 'flickr.' + method
         data['method'] = method
         formatter = formatters[data.get('format', self.format)]
         formatter.prepare_data(data)
-        url = REST_URL + '?' + urllib.urlencode(data)
+        url = REST_URL + '?' + urlencode(data)
         resp, content = self.client.request(url)
         return formatter.parse_response(resp, content)
     
-    # def __call__(self, method, **data):
-    #     if 'format' in data:
-    #         del data['format']
-    #     res = treesoup.parse(self.raw_call(method, **data))
-    #     if res['stat'] == 'fail':
-    #         raise FlickrError(int(res.err['code']), res.err['msg'])
-    #     return res[0]
+    def get_request_token(self, oauth_callback):
+        url = 'http://www.flickr.com/services/oauth/request_token'
+        query = urlencode(dict(oauth_callback=oauth_callback))
+        resp, content = self.client.request(url + '?' + query)
+        parsed = dict(parse_qsl(content))
+        return parsed['oauth_token'], parsed['oauth_token_secret']
     
+    def get_auth_url(self, oauth_token):
+        url = 'http://www.flickr.com/services/oauth/authorize'
+        query = urlencode(dict(oauth_token=oauth_token))
+        return url + '?' + query
     
-    
-    
-    def build_web_auth_link(self, perms='read'):
-        """Build a link to authorize a web user.
+    def get_access_token(self, oauth_token, oauth_token_secret, oauth_verifier):
+        url = 'http://www.flickr.com/services/oauth/access_token'
+        query = urlencode(dict(oauth_verifier=oauth_verifier))
+        token = oauth.Token(oauth_token, oauth_token_secret)
+        client = oauth.Client(self.consumer, token)
+        resp, content = client.request(url + '?' + query)
+        parsed = dict(parse_qsl(content))
+        return parsed
         
-        Upon authorization, the user will be returned to the callback URL set
-        for the current key along with a "frob" GET parameter to be passed to
-        Flickr.authorize()
         
-        See: http://www.flickr.com/services/api/auth.howto.web.html
-            
-        """
-        
-        request = dict(perms=perms)
-        self._sign_request(data)
-        return AUTH_URL + '?' + urllib.urlencode(request)
-    
-    def authorize(self, frob=None):
-        """Authorize the instance after handshake with Flickr; returns token.
-        
-        Uses the last retrieved frob if one is not supplied. Automatically
-        remembers the token and user info.
-        
-        See: http://www.flickr.com/services/api/auth.howto.web.html
-        See: http://www.flickr.com/services/api/auth.howto.desktop.html
-        
-        """
-        
-        frob = frob or self.frob
-        if not frob:
-            raise ValueError('no frob')
-        
-        res = self('auth.getToken', frob=frob)
-        self.token = res.token.text
-        self._last_checked_token = self.token
-        self._authed_user = res.user
-        
-        return self.token
     
     
