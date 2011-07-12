@@ -1,8 +1,4 @@
-"""
-Flickr API binding.
-
-"""
-
+import abc
 import collections
 import hashlib
 import json
@@ -12,119 +8,132 @@ import pprint
 import re
 import urllib
 
-import treesoup
-
+import oauth2 as oauth
 
 log = logging.getLogger(__name__)
 
 
-REST_URL     = 'http://api.flickr.com/services/rest/';
-AUTH_URL     = 'http://flickr.com/services/auth/';
-
-PERMS_NONE   = 'none';
-PERMS_READ   = 'read';
-PERMS_WRITE  = 'write';
-PERMS_DELETE = 'delete';
-
-UPLOAD_URL   = 'http://api.flickr.com/services/upload/';
-REPLACE_URL  = 'http://api.flickr.com/services/replace/';
-
-DEFAULT_KEY = os.environ.get('PYFLICKR_DEFAULT_KEY')
-DEFAULT_SECRET = os.environ.get('PYFLICKR_DEFAULT_SECRET')
-DEFAULT_TOKEN = os.environ.get('PYFLICKR_DEFAULT_TOKEN')
-
-if DEFAULT_KEY:
-    logging.info('Default key: %s' % DEFAULT_KEY)
+REST_URL     = 'http://api.flickr.com/services/rest/'
+AUTH_URL     = 'http://flickr.com/services/auth/'
+UPLOAD_URL   = 'http://api.flickr.com/services/upload/'
+REPLACE_URL  = 'http://api.flickr.com/services/replace/'
 
 
-class APIError(ValueError):
-    
+class FlickrError(ValueError):
     def __init__(self, code, message):
-        super(APIError, self).__init__('(%d) %s' % (code, message))
+        super(FlickrError, self).__init__('(%d) %s' % (code, message))
         self.code = code
+        
 
-
-class FlickrMeta(type):
+class FormatterInterface(object):
+    __metaclass__ = abc.ABCMeta
     
-    def __new__(mcls, name, bases, dict):
-        dict['_namespaces'] = namespaces = {}
-        for key in dict.keys():
-            m = re.match(r'^_method_([a-zA-Z]+)_([a-zA-Z]+)$', key)
-            if not m:
-                continue
-            namespace, method = m.groups()
-            ns_set = namespaces.setdefault(namespace, set())
-            ns_set.add(method)
-        cls = super(FlickrMeta, mcls).__new__(mcls, name, bases, dict)
-        return cls
-
-
-class FlickrNamespace(object):
+    @abc.abstractmethod
+    def prepare_data(self, data):
+        pass
     
-    def __init__(self, api, name):
-        self._api = api
-        self._name = name
-        self._methodset = api._namespaces[name]
+    @abc.abstractmethod
+    def parse_response(self, meta, content):
+        pass
+
+class ETreeFormatter(object):
+    def prepare_data(self, data):
+        data['format'] = 'rest'
+    def parse_response(self, meta, content):
+        try:
+            import xml.etree.CElementTree as etree
+        except ImportError:
+            import xml.etree.ElementTree as etree
+        return etree.fromstring(content)
+
+class LXMLETreeFormatter(object):
+    def prepare_data(self, data):
+        data['format'] = 'rest'
+    def parse_response(self, meta, content):
+        from lxml.etree import XML
+        return XML(content)
+
+class LXMLObjectifyFormatter(object):
+    def prepare_data(self, data):
+        data['format'] = 'rest'
+    def parse_response(self, meta, content):
+        from lxml.objectify import fromstring
+        return fromstring(content)
+                
+class JSONFormatter(object):
+    def prepare_data(self, data):
+        data['format'] = 'json'
+        data['nojsoncallback'] = '1'
+    def parse_response(self, meta, content):
+        return json.loads(content)
+
+formatters = {
+    'etree': ETreeFormatter(),
+    'lxml.etree': LXMLETreeFormatter(),
+    'lxml.objectify': LXMLObjectifyFormatter(),
+    'json': JSONFormatter(),
+}
+
     
+class _MethodPlaceholder(object):
+    def __init__(self, root, name):
+        self.root = root
+        self.name = name
+    def __repr__(self):
+        return '<%s method of %r>' % (self.name, self.root)
+    def __call__(self, **kwargs):
+        return self.root(self.name, **kwargs)
     def __getattr__(self, name):
-        if name not in self._methodset:
-            raise AttributeError(name)
-        return getattr(self._api, '_call_%s_%s' % (self._name, name))
-    
+        return _MethodPlaceholder(self.root, self.name +'.' + name)
+
     
 class Flickr(object):
-    __metaclass__ = FlickrMeta
     
-    def __init__(self, key=DEFAULT_KEY, secret=DEFAULT_SECRET, token=DEFAULT_TOKEN):
+    def __init__(self, keys, access_token=None, format='etree'):
+        """Create a Flickr API object
         
-        if not key:
-            raise ValueError('missing api key')
+        Params:
+            keys: tuple of (api_key, api_secret)
+            access_token: tuple of (access_token, token_secret), or None
+            format: one of 'etree', 'lxml.etree', 'lxml.objectify', 'json'
+        """
         
-        self.key = key
-        self.secret = secret
-        self.token = token
+        assert len(keys) == 2
+        assert len(access_token) == 2 if access_token else access_token is None
+        self.keys = keys
+        self.access_token = access_token
         
-        self.frob = None
+        self.format = format
         
-        self._last_checked_token = None
-        self._perms = None
-        self._authed_user = None
+        self.consumer = oauth.Consumer(*keys)
+        self.token = oauth.Token(*access_token) if access_token else None
+        self.client = oauth.Client(self.consumer, self.token)
     
     def __getattr__(self, name):
-        if name in self._namespaces:
-            return FlickrNamespace(self, name)
-        raise AttributeError(name)
+        return _MethodPlaceholder(self, 'flickr.' + name)
     
-    def _sign_request(self, data):    
-        data['api_key'] = self.key
-        if self.secret:
-            to_sign = self.secret + ''.join('%s%s' % i for i in sorted(data.items()))
-            data['api_sig'] = hashlib.md5(to_sign).hexdigest()
-    
-    def raw_call(self, method, **data):
+    def __call__(self, method, **data):
         if not method.startswith('flickr.'):
             method = 'flickr.' + method
         data['method'] = method
-        # Do auth if we have a user auth token.
-        if self.token is not None:
-            data['auth_token'] = self.token
-        self._sign_request(data)
+        formatter = formatters[data.get('format', self.format)]
+        formatter.prepare_data(data)
         url = REST_URL + '?' + urllib.urlencode(data)
-        # Don't need to manually decode the UTF-8 here as the XML parser will.
-        return urllib.urlopen(url).read()
+        resp, content = self.client.request(url)
+        return formatter.parse_response(resp, content)
     
-    def __call__(self, method, **data):
-        if 'format' in data:
-            del data['format']
-        res = treesoup.parse(self.raw_call(method, **data))
-        if res['stat'] == 'fail':
-            raise APIError(int(res.err['code']), res.err['msg'])
-        return res[0]
-    
-    
+    # def __call__(self, method, **data):
+    #     if 'format' in data:
+    #         del data['format']
+    #     res = treesoup.parse(self.raw_call(method, **data))
+    #     if res['stat'] == 'fail':
+    #         raise FlickrError(int(res.err['code']), res.err['msg'])
+    #     return res[0]
     
     
-    def build_web_auth_link(self, perms=PERMS_READ):
+    
+    
+    def build_web_auth_link(self, perms='read'):
         """Build a link to authorize a web user.
         
         Upon authorization, the user will be returned to the callback URL set
@@ -137,24 +146,6 @@ class Flickr(object):
         
         request = dict(perms=perms)
         self._sign_request(data)
-        return AUTH_URL + '?' + urllib.urlencode(request)
-            
-    def build_desktop_auth_link(self, perms=PERMS_READ, frob=None):
-        """Build a link to authorize a desktop user.
-        
-        Accepts a pre-generated frob, or automatically gets one. The frob is
-        stored for easy use of Flickr.authorize.
-        
-        See: http://www.flickr.com/services/api/auth.howto.desktop.html
-        
-        """
-        
-        self.frob = frob or self.frob or self('auth.getFrob').text
-        request = dict(
-            perms=perms, 
-            frob=self.frob
-        )
-        self._sign_request(request)
         return AUTH_URL + '?' + urllib.urlencode(request)
     
     def authorize(self, frob=None):
@@ -179,55 +170,4 @@ class Flickr(object):
         
         return self.token
     
-    @property
-    def authed_user(self):
-        if not self.token:
-            raise ValueError('no token')
-        if self._last_checked_token != self.token:
-            res = self.call('auth.checkToken', auth_token=self.token)
-            self._authed_user = res.user
-            self._last_checked_token = self.token
-        return self._authed_user
-        
     
-    def _method_photos_getInfo(self, photo_id):
-        return self.call('photos.getInfo', photo_id=photo_id)
-        
-
-if __name__ == '__main__':
-    
-    
-    
-    
-    
-    exit()
-    nsid = '24585471@N05'
-    flickr = Flickr()
-    
-    
-    frob = '72157621859939455-094639bf91886163-235409' or flickr.get_frob()
-    print 'frob    :', frob
-    # print flickr.build_desktop_auth_link(frob=frob, perms='write')
-    token = '72157621859940537-b999efdd20da1866' or flickr.get_token(frob)
-    print 'token   :', token
-    
-    flickr.token = token
-    print 'username:', flickr.username
-    print 'fullname:', flickr.fullname
-    print 'nsid    :', flickr.nsid
-    
-    exit()
-    
-    res = flickr.call('photosets.getList', user_id=flickr.nsid)
-    for photoset in res['photosets']['photoset']:
-        photoset_id = photoset['id']
-        res = flickr.call('photosets.getPhotos', photoset_id=photoset_id)
-        for photo in res['photoset']['photo']:
-            photo_id = photo['id']
-            res = flickr.call('photos.getInfo', photo_id=photo_id)
-            title = res['photo']['title']['_content']
-            desc = res['photo']['description']['_content']
-            
-            print title, desc
-            # flickr.call('photos.setMeta', photo_id=photo_id, title=desc, description=title)
-            # exit()
