@@ -3,6 +3,7 @@
 - examples
 - documentation
 - more todo items =]
+- pager
 
 AutoType
 ========

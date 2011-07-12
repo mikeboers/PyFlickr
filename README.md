@@ -15,3 +15,10 @@ TODO
 
 - see if a tag is used for more than one context. if not, I can write
   classes for each tag
+
+- autopager
+- better autotypes
+    - every node should record what method it was retrieved with and what
+      settings
+    - should be able to create mappings from tag types to others given the
+      context

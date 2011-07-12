@@ -100,6 +100,8 @@ class _MethodPlaceholder(object):
         return self.root(self.name, **kwargs)
     def __getattr__(self, name):
         return _MethodPlaceholder(self.root, self.name +'.' + name)
+    def iter(self, **kwargs):
+        return self.root.iter(self.name, **kwargs)
 
     
 class Flickr(object):
@@ -112,7 +114,7 @@ class Flickr(object):
             access_token: tuple of (access_token, token_secret), or None
             format: one of 'etree', 'lxml.etree', 'lxml.objectify', 'json'
         """
-        
+
         assert len(keys) == 2
         assert len(access_token) == 2 if access_token else access_token is None
         self.keys = keys
@@ -128,11 +130,8 @@ class Flickr(object):
     def __getattr__(self, name):
         return _MethodPlaceholder(self, 'flickr.' + name)
     
-        
     def __call__(self, method, **data):
         strict = data.pop('strict', self.strict)
-        if not method.startswith('flickr.'):
-            method = 'flickr.' + method
         data['method'] = method
         formatter = formatters[data.get('format', self.format)]
         formatter.prepare_data(data)
@@ -142,8 +141,20 @@ class Flickr(object):
         stat, err_code, err_msg = formatter.get_status(response)
         if strict and stat != 'ok':
             raise FlickrError(stat, err_code, err_msg)
-        
+        return response
     
+    def iter(self, method, **data):
+        page = int(data.pop('page', 1))
+        pages = page
+        data['format'] = 'etree'
+        while page <= pages:
+            data['page'] = page
+            res = self(method, **data.copy())
+            for child in res[0]:
+                yield child
+            pages = int(res[0].get('pages'))
+            page += 1
+        
     def get_request_token(self, oauth_callback):
         url = 'http://www.flickr.com/services/oauth/request_token'
         query = urlencode(dict(oauth_callback=oauth_callback))
