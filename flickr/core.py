@@ -126,11 +126,15 @@ class _MethodPlaceholder(object):
         return _MethodPlaceholder(self.root, self.name +'.' + name)
     def iter(self, **kwargs):
         return self.root.iter(self.name, **kwargs)
+    def pages(self, **kwargs):
+        return self.root.pages(self.name, **kwargs)
 
     
 class Flickr(object):
     
-    def __init__(self, keys, access_token=None, format='etree', strict=True):
+    def __init__(self, keys, access_token=None, format='etree', strict=True,
+        echo=False
+    ):
         """Create a Flickr API object
         
         Params:
@@ -146,6 +150,7 @@ class Flickr(object):
         
         self.format = format
         self.strict = strict
+        self.echo = echo
         
         self.consumer = oauth.Consumer(*keys)
         self.token = oauth.Token(*access_token) if access_token else None
@@ -159,6 +164,8 @@ class Flickr(object):
         
     def __call__(self, method, **data):
         strict = data.pop('strict', self.strict)
+        if self.echo:
+            log.info('%s(%s)' % (method, ', '.join('%s=%r' % x for x in data.iteritems())))
         data['method'] = method
         formatter = self._get_formatter(**data)
         formatter.prepare_data(data)
@@ -170,17 +177,21 @@ class Flickr(object):
             raise FlickrError(stat, err_code, err_msg)
         return response
     
-    def iter(self, method, **data):
+    def pageiter(self, method, **data):
         page = int(data.pop('page', 1))
         pages = page
         formatter = self._get_formatter(**data)
         while page <= pages:
             data['page'] = page
             res = self(method, **data.copy())
-            for child in formatter.get_page_contents(res):
-                yield child
+            yield formatter.get_page_contents(res)
             pages = formatter.get_page_count(res)
             page += 1
+                
+    def iter(self, method, **data):
+        for page in self.pageiter(method, **data):
+            for x in page:
+                yield x
         
     def get_request_token(self, oauth_callback):
         url = 'http://www.flickr.com/services/oauth/request_token'

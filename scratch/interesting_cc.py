@@ -1,6 +1,10 @@
 import os
+import sys
 import datetime
 from pprint import pprint
+import logging
+
+logging.basicConfig(file=sys.stderr, level=logging.DEBUG)
 
 from flickr import Flickr
 from flickr.util import *
@@ -12,24 +16,22 @@ if not (key and secret):
     print 'please set FLICKR_KEY and FLICKR_SECRET'
     exit(1)
 
-flickr = Flickr((key, secret), format='json')
+flickr = Flickr((key, secret), format='json', echo=True)
 
 
 one_day = datetime.timedelta(days=1)
-date = datetime.date.today() - one_day
+date = datetime.date.today()
 
     
 found = 0
 while found < 10:
-    photos = None
-    while photos is None or int(photos['page']) < int(photos['pages']):
-        page = int(photos['page']) + 1 if photos is not None else 1
-        result = flickr.interestingness.getList(date=str(date), extras='license', page=page)
-        pprint(result)
-        for photo in result['photos']['photo']:
-            if photo['license'] == '0':
-                continue
-            found += 1
-            print short_url(photo['id'])
     date -= one_day
+    print '---', date
+    for photo in flickr.interestingness.getList.iter(date=str(date), extras='license', per_page=10):
+        if photo['license'] == '0':
+            continue
+        found += 1
+        print found, short_url(photo['id'])
+        if found == 10:
+            break
 
