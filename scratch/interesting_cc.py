@@ -27,7 +27,7 @@ found = 0
 while found < 10:
     date -= one_day
     print '---', date
-    for photo in flickr.interestingness.getList.iter(date=str(date), extras='license', per_page=10):
+    for photo in flickr.interestingness.getList.iter(date=str(date), extras='license', per_page=25):
         if photo['license'] == '0':
             continue
         found += 1

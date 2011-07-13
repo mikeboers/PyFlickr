@@ -14,11 +14,6 @@ import oauth2 as oauth
 log = logging.getLogger(__name__)
 
 
-REST_URL = 'http://api.flickr.com/services/rest/'
-
-REQUEST_TOKEN_URL = 'http://www.flickr.com/services/oauth/request_token'
-USER_AUTH_URL = 'http://www.flickr.com/services/oauth/authorize'
-ACCESS_TOKEN_URL = 'http://www.flickr.com/services/oauth/access_token'
 
 UPLOAD_URL = 'http://api.flickr.com/services/upload/'
 REPLACE_URL = 'http://api.flickr.com/services/replace/'
@@ -132,30 +127,29 @@ class _MethodPlaceholder(object):
     
 class Flickr(object):
     
-    def __init__(self, keys, access_token=None, format='etree', strict=True,
+    def __init__(self, key, secret, token=None, format='etree', strict=True,
         echo=False
     ):
         """Create a Flickr API object
         
         Params:
-            keys: tuple of (api_key, api_secret)
-            access_token: tuple of (access_token, token_secret), or None
+            key/secret: Flickr API keys
+            access_token: string, oauth.Token, or None
             format: one of 'etree', 'lxml.etree', 'lxml.objectify', 'json'
         """
 
-        assert len(keys) == 2
-        assert len(access_token) == 2 if access_token else access_token is None
-        self.keys = keys
-        self.access_token = access_token
-        
         self.format = format
         self.strict = strict
         self.echo = echo
         
-        self.consumer = oauth.Consumer(*keys)
-        self.token = oauth.Token(*access_token) if access_token else None
-        self.client = oauth.Client(self.consumer, self.token)
-    
+        if isinstance(token, basestring):
+            token = oauth.Token.from_string(token)
+        elif token is not None and not isinstance(token, oauth.Token):
+            raise TypeError('token of unexpected type %r' % type(token))
+                
+        self._oauth_consumer = oauth.Consumer(key, secret)
+        self._oauth_client = oauth.Client(self._oauth_consumer, token)        
+            
     def __getattr__(self, name):
         return _MethodPlaceholder(self, 'flickr.' + name)
     
@@ -169,8 +163,8 @@ class Flickr(object):
         data['method'] = method
         formatter = self._get_formatter(**data)
         formatter.prepare_data(data)
-        url = REST_URL + '?' + urlencode(data)
-        meta, content = self.client.request(url)
+        url = 'http://api.flickr.com/services/rest/?' + urlencode(data)
+        meta, content = self._oauth_client.request(url)
         response = formatter.parse_response(meta, content)
         stat, err_code, err_msg = formatter.get_status(response)
         if strict and stat != 'ok':
@@ -196,23 +190,25 @@ class Flickr(object):
     def get_request_token(self, oauth_callback):
         url = 'http://www.flickr.com/services/oauth/request_token'
         query = urlencode(dict(oauth_callback=oauth_callback))
-        resp, content = self.client.request(url + '?' + query)
-        parsed = dict(parse_qsl(content))
-        return parsed['oauth_token'], parsed['oauth_token_secret']
+        resp, content = self._oauth_client.request(url + '?' + query)
+        return content
     
     def get_auth_url(self, oauth_token):
         url = 'http://www.flickr.com/services/oauth/authorize'
-        query = urlencode(dict(oauth_token=oauth_token))
-        return url + '?' + query
+        if isinstance(oauth_token, basestring):
+            oauth_token = oauth.Token.from_string(oauth_token)
+        request = oauth.Request.from_token_and_callback(token=oauth_token, http_url=url)
+        return url + '?' + urlencode(request)
     
-    def get_access_token(self, oauth_token, oauth_token_secret, oauth_verifier):
+    def get_access_token(self, oauth_token, oauth_verifier):
         url = 'http://www.flickr.com/services/oauth/access_token'
+        if isinstance(oauth_token, basestring):
+            oauth_token = oauth.Token.from_string(oauth_token)
+        
+        client = oauth.Client(self._oauth_consumer, oauth_token)    
         query = urlencode(dict(oauth_verifier=oauth_verifier))
-        token = oauth.Token(oauth_token, oauth_token_secret)
-        client = oauth.Client(self.consumer, token)
         resp, content = client.request(url + '?' + query)
-        parsed = dict(parse_qsl(content))
-        return parsed
+        return str(oauth.Token.from_string(content)), dict(parse_qsl(content))
         
         
     
