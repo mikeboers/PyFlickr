@@ -15,8 +15,8 @@ log = logging.getLogger(__name__)
 
 
 
-UPLOAD_URL = 'http://api.flickr.com/services/upload/'
-REPLACE_URL = 'http://api.flickr.com/services/replace/'
+UPLOAD_URL = 'https://api.flickr.com/services/upload/'
+REPLACE_URL = 'https://api.flickr.com/services/replace/'
 
 
 class FlickrError(ValueError):
@@ -163,7 +163,7 @@ class Flickr(object):
         data['method'] = method
         formatter = self._get_formatter(**data)
         formatter.prepare_data(data)
-        url = 'http://api.flickr.com/services/rest/?' + urlencode(data)
+        url = 'https://api.flickr.com/services/rest/?' + urlencode(data)
         meta, content = self._oauth_client.request(url)
         response = formatter.parse_response(meta, content)
         stat, err_code, err_msg = formatter.get_status(response)
@@ -188,20 +188,20 @@ class Flickr(object):
                 yield x
         
     def get_request_token(self, oauth_callback):
-        url = 'http://www.flickr.com/services/oauth/request_token'
+        url = 'https://www.flickr.com/services/oauth/request_token'
         query = urlencode(dict(oauth_callback=oauth_callback))
         resp, content = self._oauth_client.request(url + '?' + query)
         return content
     
     def get_auth_url(self, oauth_token):
-        url = 'http://www.flickr.com/services/oauth/authorize'
+        url = 'https://www.flickr.com/services/oauth/authorize'
         if isinstance(oauth_token, basestring):
             oauth_token = oauth.Token.from_string(oauth_token)
         request = oauth.Request.from_token_and_callback(token=oauth_token, http_url=url)
         return url + '?' + urlencode(request)
     
     def get_access_token(self, oauth_token, oauth_verifier):
-        url = 'http://www.flickr.com/services/oauth/access_token'
+        url = 'https://www.flickr.com/services/oauth/access_token'
         if isinstance(oauth_token, basestring):
             oauth_token = oauth.Token.from_string(oauth_token)
         
