@@ -91,13 +91,13 @@ class JSONFormatter(object):
     def get_status(self, response):
         return tuple(response.get(name) for name in ('stat', 'code', 'message'))
     def get_page_count(self, response):
-        for k, v in response.iteritems():
+        for k, v in response.items():
             if isinstance(v, dict):
                 return int(v['pages'])
     def get_page_contents(self, response):
-        for k, v in response.iteritems():
+        for k, v in response.items():
             if isinstance(v, dict):
-                for k, v2 in v.iteritems():
+                for k, v2 in v.items():
                     if isinstance(v2, list):
                         return v2
 
@@ -159,7 +159,7 @@ class Flickr(object):
     def __call__(self, method, **data):
         strict = data.pop('strict', self.strict)
         if self.echo:
-            log.info('%s(%s)' % (method, ', '.join('%s=%r' % x for x in data.iteritems())))
+            log.info('%s(%s)' % (method, ', '.join('%s=%r' % x for x in data.items())))
         data['method'] = method
         formatter = self._get_formatter(**data)
         formatter.prepare_data(data)
@@ -195,14 +195,14 @@ class Flickr(object):
     
     def get_auth_url(self, oauth_token):
         url = 'https://www.flickr.com/services/oauth/authorize'
-        if isinstance(oauth_token, basestring):
+        if isinstance(oauth_token, str):
             oauth_token = oauth.Token.from_string(oauth_token)
         request = oauth.Request.from_token_and_callback(token=oauth_token, http_url=url)
         return url + '?' + urlencode(request)
     
     def get_access_token(self, oauth_token, oauth_verifier):
         url = 'https://www.flickr.com/services/oauth/access_token'
-        if isinstance(oauth_token, basestring):
+        if isinstance(oauth_token, str):
             oauth_token = oauth.Token.from_string(oauth_token)
         
         client = oauth.Client(self._oauth_consumer, oauth_token)    
