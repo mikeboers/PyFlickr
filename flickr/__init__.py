@@ -1,1 +1,1 @@
-from core import Flickr
+from .core import Flickr

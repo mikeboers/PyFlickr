@@ -6,8 +6,8 @@ import logging
 import os
 import pprint
 import re
-from urlparse import parse_qsl
-from urllib import urlencode
+
+from six.moves.urllib.parse import parse_qsl, urlencode
 
 import oauth2 as oauth
 
@@ -142,7 +142,7 @@ class Flickr(object):
         self.strict = strict
         self.echo = echo
         
-        if isinstance(token, basestring):
+        if isinstance(token, str):
             token = oauth.Token.from_string(token)
         elif token is not None and not isinstance(token, oauth.Token):
             raise TypeError('token of unexpected type %r' % type(token))
